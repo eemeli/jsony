@@ -1,0 +1,25 @@
+{
+  "name": "@eemeli/jsony",
+  "version": "0.0.1",
+  "author": "Eemeli Aro <eemeli@gmail.com>",
+  "license": "MPL-2.0",
+  "description": "AST, CST & YAML conversion tools for JSON5",
+  "keywords": [
+    "JSON",
+    "JSON5",
+    "AST",
+    "CST",
+    "parser",
+    "stringifier",
+    "conversion",
+    "YAML"
+  ],
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/eemeli/jsony.git"
+  },
+  "bugs": {
+    "url": "https://github.com/eemeli/jsony/issues"
+  },
+  "homepage": "https://github.com/eemeli/jsony#readme"
+}

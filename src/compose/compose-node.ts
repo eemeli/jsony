@@ -1,6 +1,7 @@
 import type { CST, ParsedNode, ParseOptions, Schema } from 'yaml'
 import { composeCollection } from './compose-collection.js'
-import { composeScalar } from './compose-scalar.js'
+import { composePlainScalar } from './compose-plain-scalar.js'
+import { composeQuotedScalar } from './compose-quoted-scalar.js'
 import type { ComposeErrorHandler } from './composer.js'
 import { emptyScalarPosition } from './util-empty-scalar-position.js'
 
@@ -27,9 +28,11 @@ export function composeNode(
   let node: ParsedNode
   switch (token.type) {
     case 'scalar':
+      node = composePlainScalar(ctx, token, onError)
+      break
     case 'single-quoted-scalar':
     case 'double-quoted-scalar':
-      node = composeScalar(ctx, token, onError)
+      node = composeQuotedScalar(token, onError)
       break
     case 'flow-collection':
       node = composeCollection(CN, ctx, token, onError)
@@ -63,7 +66,7 @@ export function composeEmptyNode(
     indent: -1,
     source: ''
   }
-  const node = composeScalar(ctx, token, onError)
+  const node = composePlainScalar(ctx, token, onError)
   if (spaceBefore) node.spaceBefore = true
   if (comment) node.comment = comment
   return node

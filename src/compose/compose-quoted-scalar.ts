@@ -1,5 +1,5 @@
 import { Scalar } from 'yaml'
-import type { CST, ErrorCode, Range } from 'yaml'
+import type { CST, ErrorCode } from 'yaml'
 import type { ComposeErrorHandler } from './composer.js'
 import { resolveEnd } from './resolve-end.js'
 
@@ -9,87 +9,25 @@ type FlowScalarErrorHandler = (
   message: string
 ) => void
 
-export function resolveScalarValue(
-  scalar: CST.FlowScalar,
+export function composeQuotedScalar(
+  { offset, type, source, end }: CST.FlowScalar,
   onError: ComposeErrorHandler
-): {
-  value: string
-  type: Scalar.PLAIN | Scalar.QUOTE_DOUBLE | Scalar.QUOTE_SINGLE | null
-  comment: string
-  range: Range
-} {
-  const { offset, type, source, end } = scalar
-  let _type: Scalar.PLAIN | Scalar.QUOTE_DOUBLE | Scalar.QUOTE_SINGLE
-  let value: string
-  const _onError: FlowScalarErrorHandler = (rel, code, msg) =>
+) {
+  const value = quotedString(source, (rel, code, msg) =>
     onError(offset + rel, code, msg)
-  switch (type) {
-    case 'scalar':
-      _type = Scalar.PLAIN
-      value = plainValue(source, _onError)
-      break
-
-    case 'single-quoted-scalar':
-      _type = Scalar.QUOTE_SINGLE
-      value = quotedString(source, _onError)
-      break
-
-    case 'double-quoted-scalar':
-      _type = Scalar.QUOTE_DOUBLE
-      value = quotedString(source, _onError)
-      break
-
-    /* istanbul ignore next should not happen */
-    default:
-      onError(
-        scalar,
-        'UNEXPECTED_TOKEN',
-        `Expected a flow scalar value, but found: ${type}`
-      )
-      return {
-        value: '',
-        type: null,
-        comment: '',
-        range: [offset, offset + source.length, offset + source.length]
-      }
-  }
+  )
+  const scalar = new Scalar(value)
 
   const valueEnd = offset + source.length
   const re = resolveEnd(end, valueEnd, onError)
-  return {
-    value,
-    type: _type,
-    comment: re.comment,
-    range: [offset, valueEnd, re.offset]
-  }
-}
 
-// ECMAScript 5.1 IdentifierName: https://262.ecma-international.org/5.1/#sec-7.6
-// https://unicode.org/Public/UNIDATA/PropertyValueAliases.txt
-const IdentifierStart = /[$_\p{Letter}\p{Nl}]/u
-const IdentifierPart =
-  /[$_\p{Letter}\p{Nl}\p{Nd}\p{Mn}\p{Mc}\p{Pc}\u{200c}\u{200d}]/u
+  scalar.range = [offset, valueEnd, re.offset]
+  scalar.source = value
+  scalar.type =
+    type === 'single-quoted-scalar' ? Scalar.QUOTE_SINGLE : Scalar.QUOTE_DOUBLE
+  if (re.comment) scalar.comment = re.comment
 
-function plainValue(source: string, onError: FlowScalarErrorHandler) {
-  // JSON5NumericLiteral, validated later
-  if ('-+.0123456789'.includes(source[0])) return source
-
-  let res = ''
-  for (let i = 0; i < source.length; ++i) {
-    let ch = source[i]
-    if (ch === '\\' && source[i + 1] === 'u') {
-      ch = parseCharCode(source, i + 2, 4, onError)
-      i += 5
-    }
-    const re = i === 0 ? IdentifierStart : IdentifierPart
-    if (!re.test(ch)) {
-      let cp = ch.codePointAt(0)?.toString(16) ?? '????'
-      while (cp.length < 4) cp = '0' + cp
-      onError(i, 'BAD_SCALAR_START', `Invalid character \\u${cp}`)
-    }
-    res += ch
-  }
-  return res
+  return scalar as Scalar.Parsed
 }
 
 function quotedString(source: string, onError: FlowScalarErrorHandler) {

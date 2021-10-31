@@ -15,13 +15,6 @@ function stringifyFloat({ value }: Scalar) {
 
 const jsonScalars: ScalarTag[] = [
   {
-    identify: value => typeof value === 'string',
-    default: true,
-    tag: 'tag:json5.org:str',
-    resolve: str => str,
-    stringify: stringifyJSON
-  },
-  {
     identify: value => value == null,
     createNode: () => new Scalar(null),
     default: true,
@@ -57,7 +50,6 @@ const jsonScalars: ScalarTag[] = [
     stringify: stringifyFloat
   },
   {
-    identify: value => typeof value === 'number',
     default: true,
     tag: 'tag:json5.org:float',
     test: /^[-+]?(?:Infinity|NaN)$/,
@@ -68,6 +60,23 @@ const jsonScalars: ScalarTag[] = [
         ? Number.NEGATIVE_INFINITY
         : Number.POSITIVE_INFINITY,
     stringify: stringifyFloat
+  },
+  {
+    identify: value => typeof value === 'string',
+    default: true,
+    format: 'identifier',
+    tag: 'tag:json5.org:str',
+    test: /^[$_\p{Letter}\p{Nl}][$_\p{Letter}\p{Nl}\p{Nd}\p{Mn}\p{Mc}\p{Pc}\u{200c}\u{200d}]*$/u,
+    resolve: (str, onError) =>
+      str.replace(/\\u(.{0,4})/gs, (raw, code) => {
+        if (/^[0-9a-fA-F]{4}$/.test(code)) {
+          return String.fromCodePoint(parseInt(code, 16))
+        } else {
+          onError(`Invalid escape sequence ${raw}`)
+          return raw
+        }
+      }),
+    stringify: stringifyJSON
   }
 ]
 

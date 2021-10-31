@@ -14,6 +14,7 @@ import type {
 } from 'yaml'
 import { composeDoc } from './compose-doc.js'
 import { resolveEnd } from './resolve-end.js'
+import { tags } from '../tags.js'
 
 type ErrorSource =
   | number
@@ -82,7 +83,10 @@ export class Composer {
   private warnings: YAMLWarning[] = []
 
   constructor(options: ParseOptions & DocumentOptions & SchemaOptions = {}) {
-    this.options = Object.assign({ schema: 'json' }, options)
+    this.options = Object.assign(
+      { customTags: tags, resolveKnownTags: false, schema: 'json5' },
+      options
+    )
   }
 
   private onError: ComposeErrorHandler = (source, code, message, warning) => {

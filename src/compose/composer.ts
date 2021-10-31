@@ -12,9 +12,10 @@ import type {
   ParseOptions,
   SchemaOptions
 } from 'yaml'
+import { tags } from '../tags.js'
 import { composeDoc } from './compose-doc.js'
 import { resolveEnd } from './resolve-end.js'
-import { tags } from '../tags.js'
+import { checkCommentEnd } from './util-check-comment-end.js'
 
 type ErrorSource =
   | number
@@ -174,6 +175,8 @@ export class Composer {
       case 'space':
         break
       case 'comment':
+        checkCommentEnd(token, this.onError)
+      // fallthrough
       case 'newline':
         this.prelude.push(token.source)
         break

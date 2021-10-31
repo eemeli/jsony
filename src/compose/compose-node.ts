@@ -1,9 +1,8 @@
-import type { CST, ParsedNode, ParseOptions, Schema } from 'yaml'
+import { CST, ParsedNode, ParseOptions, Scalar, Schema } from 'yaml'
 import { composeCollection } from './compose-collection.js'
 import { composePlainScalar } from './compose-plain-scalar.js'
 import { composeQuotedScalar } from './compose-quoted-scalar.js'
 import type { ComposeErrorHandler } from './composer.js'
-import { emptyScalarPosition } from './util-empty-scalar-position.js'
 
 export interface ComposeContext {
   options: Readonly<Required<Omit<ParseOptions, 'lineCounter'>>>
@@ -22,6 +21,7 @@ export function composeNode(
   ctx: ComposeContext,
   token: CST.Token,
   props: Props,
+  isMapKey: boolean,
   onError: ComposeErrorHandler
 ) {
   const { spaceBefore, comment } = props
@@ -47,22 +47,36 @@ export function composeNode(
     else node.commentBefore = comment
   }
   if (ctx.options.keepSourceTokens) node.srcToken = token
+
+  if (isMapKey) {
+    if (
+      !(node instanceof Scalar) ||
+      typeof node.value !== 'string' ||
+      (node.type === Scalar.PLAIN && node.format !== 'ID')
+    ) {
+      onError(node.range, 'UNEXPECTED_TOKEN', 'Invalid map key')
+    }
+  } else if (
+    node instanceof Scalar &&
+    typeof node.value === 'string' &&
+    node.type === Scalar.PLAIN
+  ) {
+    onError(node.range, 'UNEXPECTED_TOKEN', 'Invalid value')
+  }
+
   return node
 }
 
 export function composeEmptyNode(
   ctx: ComposeContext,
   offset: number,
-  before: CST.Token[] | undefined,
-  pos: number | null,
   { spaceBefore, comment }: Props,
   onError: ComposeErrorHandler
 ) {
-  const emptyPos = emptyScalarPosition(offset, before, pos)
-  onError(emptyPos, 'UNEXPECTED_TOKEN', 'Expected a value')
+  onError(offset, 'UNEXPECTED_TOKEN', 'Expected a value')
   const token: CST.FlowScalar = {
     type: 'scalar',
-    offset: emptyPos,
+    offset,
     indent: -1,
     source: ''
   }

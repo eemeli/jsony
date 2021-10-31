@@ -1,23 +1,9 @@
-import { isPair, Node, Pair, Scalar, YAMLMap, YAMLSeq } from 'yaml'
+import { isPair, Pair, YAMLMap, YAMLSeq } from 'yaml'
 import type { CST } from 'yaml'
 import type { ComposeContext, ComposeNode } from './compose-node.js'
 import type { ComposeErrorHandler } from './composer.js'
 import { resolveEnd } from './resolve-end.js'
 import { resolveProps } from './resolve-props.js'
-import { mapIncludes } from './util-map-includes.js'
-
-const isValidKey = (node: Node | null) =>
-  node instanceof Scalar &&
-  typeof node.value === 'string' &&
-  (node.type !== Scalar.PLAIN || node.format === 'identifier')
-
-const isValidValue = (node: Node | null) =>
-  node &&
-  !(
-    node instanceof Scalar &&
-    typeof node.value === 'string' &&
-    node.type === Scalar.PLAIN
-  )
 
 export function composeCollection(
   { composeNode, composeEmptyNode }: ComposeNode,
@@ -92,10 +78,8 @@ export function composeCollection(
       // item is a value in a seq
       // → key & sep are empty, start does not include :
       const valueNode = value
-        ? composeNode(ctx, value, props, onError)
-        : composeEmptyNode(ctx, props.end, sep, null, props, onError)
-      if (!isValidValue(valueNode))
-        onError(valueNode.range, 'UNEXPECTED_TOKEN', 'Invalid seq value')
+        ? composeNode(ctx, value, props, false, onError)
+        : composeEmptyNode(ctx, props.end, props, onError)
       ;(coll as YAMLSeq).items.push(valueNode)
       offset = valueNode.range[2]
     } else {
@@ -104,10 +88,8 @@ export function composeCollection(
       // key value
       const keyStart = props.end
       const keyNode = key
-        ? composeNode(ctx, key, props, onError)
-        : composeEmptyNode(ctx, keyStart, start, null, props, onError)
-      if (!isValidKey(keyNode))
-        onError(keyNode.range, 'UNEXPECTED_TOKEN', 'Invalid map key')
+        ? composeNode(ctx, key, props, true, onError)
+        : composeEmptyNode(ctx, keyStart, props, onError)
 
       // value properties
       const valueProps = resolveProps(sep || [], {
@@ -126,31 +108,17 @@ export function composeCollection(
 
       // value value
       const valueNode = value
-        ? composeNode(ctx, value, valueProps, onError)
-        : valueProps.found
-        ? composeEmptyNode(ctx, valueProps.end, sep, null, valueProps, onError)
-        : null
-      if (!valueNode && valueProps.comment) {
-        if (keyNode.comment) keyNode.comment += '\n' + valueProps.comment
-        else keyNode.comment = valueProps.comment
-      }
-      if (!isValidValue(valueNode))
-        onError(
-          valueNode?.range || valueProps.end,
-          'UNEXPECTED_TOKEN',
-          'Invalid map value'
-        )
+        ? composeNode(ctx, value, valueProps, false, onError)
+        : composeEmptyNode(ctx, valueProps.end, valueProps, onError)
 
       const pair = new Pair(keyNode, valueNode)
       if (ctx.options.keepSourceTokens) pair.srcToken = collItem
       if (isMap) {
         const map = coll as YAMLMap.Parsed
-        if (mapIncludes(ctx, map.items, keyNode))
-          onError(keyStart, 'DUPLICATE_KEY', 'Map keys must be unique')
         map.items.push(pair)
       } else {
         onError(
-          [keyStart, (valueNode || keyNode).range[1]],
+          [keyStart, valueNode.range[1]],
           'MISSING_CHAR',
           'Missing {} around map in seq'
         )
@@ -159,7 +127,7 @@ export function composeCollection(
         map.items.push(pair)
         ;(coll as YAMLSeq).items.push(map)
       }
-      offset = valueNode ? valueNode.range[2] : valueProps.end
+      offset = valueNode.range[2]
     }
   }
 

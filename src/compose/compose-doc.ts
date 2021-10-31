@@ -25,8 +25,8 @@ export function composeDoc(
     startOnNewline: true
   })
   doc.contents = value
-    ? composeNode(ctx, value, props, onError)
-    : composeEmptyNode(ctx, props.end, start, null, props, onError)
+    ? composeNode(ctx, value, props, false, onError)
+    : composeEmptyNode(ctx, props.end, props, onError)
 
   const contentEnd = doc.contents.range[2]
   const re = resolveEnd(end, contentEnd, onError)

@@ -1,5 +1,6 @@
 import type { CST } from 'yaml'
 import type { ComposeErrorHandler } from './composer.js'
+import { checkCommentEnd } from './util-check-comment-end.js'
 
 export function resolveEnd(
   end: CST.SourceToken[] | undefined,
@@ -15,6 +16,7 @@ export function resolveEnd(
         case 'space':
           break
         case 'comment': {
+          checkCommentEnd(token, onError)
           const cb = source.substring(1) || ' '
           if (!comment) comment = cb
           else comment += sep + cb

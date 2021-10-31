@@ -42,10 +42,35 @@ const jsonScalars: ScalarTag[] = [
       intIdentify(value) ? value.toString() : JSON.stringify(value)
   },
   {
+    identify: intIdentify,
+    default: true,
+    tag: 'tag:json5.org:int',
+    format: 'HEX',
+    test: /^[-+]?0[xX][0-9a-fA-F]+$/,
+    resolve: (str, _onError, { intAsBigInt }) => {
+      let neg = false
+      switch (str[0]) {
+        case '-':
+          neg = true
+        case '+':
+          str = str.substring(1)
+          break
+      }
+      const num = intAsBigInt ? BigInt(str) : Number(str)
+      return neg ? -num : num
+    },
+    stringify({ value }) {
+      if (intIdentify(value)) {
+        if (value >= 0) return '0x' + value.toString(16)
+        else return '-0x' + (-value).toString(16)
+      } else return JSON.stringify(value)
+    }
+  },
+  {
     identify: value => typeof value === 'number',
     default: true,
     tag: 'tag:json5.org:float',
-    test: /^[-+]?(?:0|[1-9][0-9]*)(?:\.[0-9]*)?(?:[eE][-+]?[0-9]+)?$/,
+    test: /^[-+]?(?:(?:0|[1-9][0-9]*)(?:\.[0-9]*)?|\.[0-9]+)(?:[eE][-+]?[0-9]+)?$/,
     resolve: str => parseFloat(str),
     stringify: stringifyFloat
   },
@@ -64,18 +89,28 @@ const jsonScalars: ScalarTag[] = [
   {
     identify: value => typeof value === 'string',
     default: true,
-    format: 'identifier',
     tag: 'tag:json5.org:str',
-    test: /^[$_\p{Letter}\p{Nl}][$_\p{Letter}\p{Nl}\p{Nd}\p{Mn}\p{Mc}\p{Pc}\u{200c}\u{200d}]*$/u,
-    resolve: (str, onError) =>
-      str.replace(/\\u(.{0,4})/gs, (raw, code) => {
+    test: /^/,
+    resolve: (str, onError) => {
+      const esc = str.replace(/\\u(.{0,4})/gs, (raw, code) => {
         if (/^[0-9a-fA-F]{4}$/.test(code)) {
           return String.fromCodePoint(parseInt(code, 16))
         } else {
           onError(`Invalid escape sequence ${raw}`)
           return raw
         }
-      }),
+      })
+      if (
+        /^[$_\p{Letter}\p{Nl}][$_\p{Letter}\p{Nl}\p{Nd}\p{Mn}\p{Mc}\p{Pc}\u{200c}\u{200d}]*$/u.test(
+          esc
+        )
+      ) {
+        const res = new Scalar(esc)
+        res.format = 'ID'
+        return res
+      }
+      return str
+    },
     stringify: stringifyJSON
   }
 ]

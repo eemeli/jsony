@@ -21,5 +21,25 @@
   "bugs": {
     "url": "https://github.com/eemeli/jsony/issues"
   },
-  "homepage": "https://github.com/eemeli/jsony#readme"
+  "homepage": "https://github.com/eemeli/jsony#readme",
+  "type": "commonjs",
+  "main": "dist/index.js",
+  "scripts": {
+    "build": "tsc",
+    "prettier": "prettier --ignore-path .gitignore --write ."
+  },
+  "dependencies": {
+    "yaml": "2.0.0-8"
+  },
+  "devDependencies": {
+    "@types/node": "^16.11.6",
+    "prettier": "^2.4.1",
+    "typescript": "^4.4.4"
+  },
+  "prettier": {
+    "arrowParens": "avoid",
+    "semi": false,
+    "singleQuote": true,
+    "trailingComma": "none"
+  }
 }

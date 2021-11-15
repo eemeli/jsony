@@ -2,6 +2,7 @@ import { isPair, Pair, YAMLMap, YAMLSeq } from 'yaml'
 import type { CST } from 'yaml'
 import type { ComposeContext, ComposeNode } from './compose-node.js'
 import type { ComposeErrorHandler } from './composer.js'
+import { resolveComment } from './resolve-comment.js'
 import { resolveEnd } from './resolve-end.js'
 import { resolveProps } from './resolve-props.js'
 
@@ -58,7 +59,7 @@ export function composeCollection(
             case 'space':
               break
             case 'comment':
-              prevItemComment = st.source.substring(1)
+              prevItemComment = resolveComment(st, onError)
               break loop
             default:
               break loop

@@ -15,7 +15,7 @@ import type {
 import { tags } from '../tags.js'
 import { composeDoc } from './compose-doc.js'
 import { resolveEnd } from './resolve-end.js'
-import { checkCommentEnd } from './util-check-comment-end.js'
+import { resolveComment } from './resolve-comment.js'
 
 type ErrorSource =
   | number
@@ -37,31 +37,28 @@ function getErrorPos(src: ErrorSource): [number, number] {
   return [offset, offset + (typeof source === 'string' ? source.length : 1)]
 }
 
-function parsePrelude(prelude: string[]) {
+function parsePrelude(
+  prelude: CST.SourceToken[],
+  onError: ComposeErrorHandler
+) {
   let comment = ''
   let atComment = false
-  let afterEmptyLine = false
-  for (let i = 0; i < prelude.length; ++i) {
-    const source = prelude[i]
-    switch (source[0]) {
-      case '#':
-        comment +=
-          (comment === '' ? '' : afterEmptyLine ? '\n\n' : '\n') +
-          (source.substring(1) || ' ')
-        atComment = true
-        afterEmptyLine = false
-        break
-      case '%':
-        if (prelude[i + 1]?.[0] !== '#') i += 1
-        atComment = false
-        break
-      default:
-        // This may be wrong after doc-end, but in that case it doesn't matter
-        if (!atComment) afterEmptyLine = true
-        atComment = false
+  let atEmptyLine = false
+  for (const token of prelude) {
+    if (token.type === 'comment') {
+      resolveComment(token, onError)
+      comment +=
+        (comment === '' ? '' : atEmptyLine ? '\n\n' : '\n') +
+        resolveComment(token, onError)
+      atComment = true
+      atEmptyLine = false
+    } else {
+      // This may be wrong after doc-end, but in that case it doesn't matter
+      if (!atComment) atEmptyLine = true
+      atComment = false
     }
   }
-  return { comment, afterEmptyLine }
+  return { comment, atEmptyLine }
 }
 
 /**
@@ -79,7 +76,7 @@ export class Composer {
   private doc: Document.Parsed | null = null
   private options: ParseOptions & DocumentOptions & SchemaOptions
   private atDirectives = false
-  private prelude: string[] = []
+  private prelude: CST.SourceToken[] = []
   private errors: YAMLParseError[] = []
   private warnings: YAMLWarning[] = []
 
@@ -97,13 +94,12 @@ export class Composer {
   }
 
   private decorate(doc: Document.Parsed, afterDoc: boolean) {
-    const { comment, afterEmptyLine } = parsePrelude(this.prelude)
-    //console.log({ dc: doc.comment, prelude, comment })
+    const { atEmptyLine, comment } = parsePrelude(this.prelude, this.onError)
     if (comment) {
       const dc = doc.contents
       if (afterDoc) {
         doc.comment = doc.comment ? `${doc.comment}\n${comment}` : comment
-      } else if (afterEmptyLine || !dc) {
+      } else if (atEmptyLine || !dc) {
         doc.commentBefore = comment
       } else if (isCollection(dc) && !dc.flow && dc.items.length > 0) {
         let it = dc.items[0]
@@ -136,7 +132,7 @@ export class Composer {
    */
   streamInfo() {
     return {
-      comment: parsePrelude(this.prelude).comment,
+      comment: parsePrelude(this.prelude, this.onError).comment,
       errors: this.errors,
       warnings: this.warnings
     }
@@ -175,10 +171,8 @@ export class Composer {
       case 'space':
         break
       case 'comment':
-        checkCommentEnd(token, this.onError)
-      // fallthrough
       case 'newline':
-        this.prelude.push(token.source)
+        this.prelude.push(token)
         break
       case 'error': {
         const msg = token.source

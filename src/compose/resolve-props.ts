@@ -1,6 +1,6 @@
 import type { CST } from 'yaml'
 import type { ComposeErrorHandler } from './composer.js'
-import { checkCommentEnd } from './util-check-comment-end.js'
+import { resolveComment } from './resolve-comment.js'
 
 export interface ResolvePropsArg {
   expectMapInd?: boolean
@@ -25,8 +25,7 @@ export function resolveProps(
       case 'space':
         break
       case 'comment': {
-        checkCommentEnd(token, onError)
-        const cb = token.source.substring(1) || ' '
+        const cb = resolveComment(token, onError)
         if (!comment) comment = cb
         else comment += commentSep + cb
         commentSep = ''

@@ -46,6 +46,8 @@ export function resolveProps(
         break
       case 'map-value-ind':
         if (expectMapInd) {
+          if (found)
+            onError(token, 'UNEXPECTED_TOKEN', `Unexpected : in ${flow}`)
           found = token
           atNewline = false
           break

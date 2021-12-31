@@ -39,6 +39,7 @@ export function composeNode(
       break
     default:
       console.log(token)
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
       throw new Error(`Unsupporten token type: ${(token as any).type}`)
   }
   if (spaceBefore) node.spaceBefore = true

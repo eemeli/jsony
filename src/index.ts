@@ -37,6 +37,7 @@ export function parseDocs(source: string): Document.Parsed[] {
   return Array.from(composer.compose(parser.parse(source)))
 }
 
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
 export function parseAll(source: string): any[] {
   return parseDocs(source).map(doc => {
     for (const error of doc.errors) console.error(error)

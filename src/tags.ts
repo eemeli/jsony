@@ -52,6 +52,7 @@ const jsonScalars: ScalarTag[] = [
       switch (str[0]) {
         case '-':
           neg = true
+        // fallthrough
         case '+':
           str = str.substring(1)
           break

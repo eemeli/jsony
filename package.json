@@ -26,8 +26,10 @@
   "main": "dist/index.js",
   "scripts": {
     "build": "tsc",
+    "lint": "eslint src/",
     "prettier": "prettier --ignore-path .gitignore --write .",
-    "test": "jest --coverage"
+    "test": "jest --coverage",
+    "test:types": "tsc --noEmit"
   },
   "dependencies": {
     "yaml": "2.0.0-10"
@@ -35,6 +37,10 @@
   "devDependencies": {
     "@types/jest": "^27.0.2",
     "@types/node": "^16.11.6",
+    "@typescript-eslint/eslint-plugin": "^5.8.1",
+    "@typescript-eslint/parser": "^5.8.1",
+    "eslint": "^8.5.0",
+    "eslint-config-prettier": "^8.3.0",
     "jest": "^27.3.1",
     "jest-ts-webcompat-resolver": "^1.0.0",
     "prettier": "^2.4.1",

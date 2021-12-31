@@ -47,6 +47,9 @@
     "ts-jest": "^27.0.7",
     "typescript": "^4.4.4"
   },
+  "engines": {
+    "node": ">= 14"
+  },
   "prettier": {
     "arrowParens": "avoid",
     "semi": false,

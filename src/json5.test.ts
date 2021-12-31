@@ -1,6 +1,11 @@
 import { readdirSync, readFileSync } from 'fs'
 import { basename, extname, resolve } from 'path'
-import { parseDocs } from '.'
+import * as YAML from 'yaml'
+import { JsonSchema, parseDocs } from '.'
+
+const skip: Record<string, Array<'yaml'>> = {
+  'duplicate-keys': ['yaml']
+}
 
 function parseOne(source: string) {
   const docs = parseDocs(source)
@@ -16,7 +21,7 @@ function parseOne(source: string) {
 const root = resolve('json5-tests')
 for (const dir of readdirSync(root, { withFileTypes: true })) {
   if (dir.isDirectory()) {
-    describe(dir.name, () => {
+    describe(`JSON5 ${dir.name}`, () => {
       const td = resolve(root, dir.name)
       for (const tf of readdirSync(td)) {
         const ext = extname(tf)
@@ -35,10 +40,30 @@ for (const dir of readdirSync(root, { withFileTypes: true })) {
             continue
         }
 
-        test(`${basename(tf, ext)} (${pass ? 'pass' : 'fail'})`, () => {
+        const name = basename(tf, ext)
+        test(`${name} (${pass ? 'pass' : 'reject'})`, () => {
           const src = readFileSync(resolve(td, tf), 'utf8')
           if (pass) {
-            parseOne(src)
+            const doc = parseOne(src)
+            const res = doc.toJS()
+
+            const str = doc.toString()
+            try {
+              parseOne(str)
+            } catch (err) {
+              console.log(td, tf, '::\n', str)
+              throw err
+            }
+
+            if (!skip[name]?.includes('yaml')) {
+              doc.setSchema('1.2', { schema: 'core' })
+              const yamlStr = doc.toString()
+              const yamlDoc = YAML.parseDocument(yamlStr)
+              expect(yamlDoc.errors).toHaveLength(0)
+              expect(yamlDoc.warnings).toHaveLength(0)
+              const yamlRes = doc.toJS()
+              expect(JSON.stringify(yamlRes)).toBe(JSON.stringify(res))
+            }
           } else {
             expect(() => parseOne(src)).toThrow()
           }
@@ -47,3 +72,58 @@ for (const dir of readdirSync(root, { withFileTypes: true })) {
     })
   }
 }
+
+describe('setSchema', () => {
+  test('YAML block map', () => {
+    const doc = YAML.parseDocument('foo: bar')
+
+    const schema = new JsonSchema()
+    doc.setSchema(null, { schema })
+    expect(doc.toString()).toBe('{ "foo": "bar" }\n')
+
+    doc.setSchema('1.2', { schema: 'core' })
+    expect(doc.toString()).toBe('foo: bar\n')
+  })
+
+  test('YAML block seq', () => {
+    const doc = YAML.parseDocument('- foo\n- bar\n')
+    const schema = new JsonSchema()
+    doc.setSchema(null, { schema })
+    expect(doc.toString()).toBe('[ "foo", "bar" ]\n')
+
+    doc.setSchema('1.2', { schema: 'core' })
+    expect(doc.toString()).toBe('- foo\n- bar\n')
+  })
+
+  test('YAML complex key', () => {
+    const doc = YAML.parseDocument('[foo]: bar')
+    const schema = new JsonSchema()
+    doc.setSchema(null, { schema })
+    expect(() => doc.toString()).toThrow(/simple keys/)
+
+    doc.setSchema('1.2', { schema: 'core' })
+    expect(doc.toString()).toBe('? [ foo ]\n: bar\n')
+  })
+
+  test('YAML explicit tag', () => {
+    const doc = YAML.parseDocument('!!str foo')
+
+    const schema = new JsonSchema()
+    doc.setSchema(null, { schema })
+    expect(doc.toString()).toBe('"foo"\n')
+
+    doc.setSchema('1.2', { schema: 'core' })
+    expect(doc.toString()).toBe('!!str foo\n')
+  })
+
+  test('YAML anchor & alias', () => {
+    const doc = YAML.parseDocument('[ &x foo, *x ]')
+
+    const schema = new JsonSchema()
+    doc.setSchema(null, { schema })
+    expect(doc.toString()).toBe('[ "foo", "foo" ]\n')
+
+    doc.setSchema('1.2', { schema: 'core' })
+    expect(doc.toString()).toBe('[ &x foo, *x ]\n')
+  })
+})

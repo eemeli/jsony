@@ -30,7 +30,7 @@
     "test": "jest --coverage"
   },
   "dependencies": {
-    "yaml": "2.0.0-8"
+    "yaml": "2.0.0-10"
   },
   "devDependencies": {
     "@types/jest": "^27.0.2",
